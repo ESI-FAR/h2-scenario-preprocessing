@@ -1,0 +1,149 @@
+# see documentation, e.g.
+# - https://packaging.python.org/en/latest/specifications/declaring-project-metadata/#declaring-project-metadata
+# - https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
+# - https://www.python.org/dev/peps/pep-0621/
+
+[build-system]
+requires = ["setuptools>=64.0.0", "setuptools-scm[toml]>=8", "wheel", "build"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "h2scenarios"
+description = "Offshore H2 scenario explorer"
+authors = [
+    { name = "Ermanno Locassio", email = "ermanno.locascio@esciencecenter.nl"},
+    { name = "Sander van Rijn", email = "s.vanrijn@esciencecenter.nl"},
+    { name = "Suvayu Ali", email = "s.ali@esciencecenter.nl" },    
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+keywords = [
+    "hychain",
+    "hydrogen",
+    "visualisation",
+]
+license = {file = "LICENSE"}
+readme = {file = "README.md", content-type = "text/markdown"}
+dynamic = ["version"]
+requires-python = ">=3.10"
+dependencies = [
+    "duckdb",
+    "h5netcdf",
+    "ipywidgets",
+    "jupyterlab",
+    "netCDF4",
+    "pandas[performance]",
+    "parse",
+    "xarray",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy",
+    "pytest",
+    "pytest-cov",
+]
+
+[tool.setuptools_scm]
+version_file = "src/h2scenarios/_version.py"
+# default: guess-next-dev, alternatives: post-release, no-guess-dev
+version_scheme = "release-branch-semver"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--import-mode=importlib", "--cov=src", "-q"]
+
+[tool.coverage.run]
+omit = ["src/h2scenarios/_version.py"]
+
+[tool.black]
+include = '\.pyi?$'
+extend-exclude ='''
+(
+  ^tests/data
+)
+'''
+
+[tool.mypy]
+ignore_missing_imports = true
+check_untyped_defs = true
+files = "src"
+
+[tool.pyright]
+include = ["src"]
+ignore = ["tests"]
+
+[tool.ruff]
+respect-gitignore = true
+exclude = [
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".mypy_cache",
+    ".nox",
+    ".ruff_cache",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "build",
+    "dist",
+    "scripts",
+    "venv",
+    "tmp",
+    "data",
+]
+
+[tool.ruff.lint]
+select = [
+    "F",  # Pyflakes
+    "E",  # pycodestyle (error)
+    "W",    # pycodestyle (warning)
+    # "C90",  # mccabe
+    "I",    # isort
+    "D",    # pydocstyle
+    # "PL",   # Pylint
+    # "PLC",  # Convention
+    # "PLE",  # Error
+    # "PLR",  # Refactor
+    # "PLW",  # Warning
+]
+
+ignore = [
+    # 'D100',  # Missing module docstring
+    # 'D104',  # Missing public package docstring
+    # The following list excludes rules irrelevant to the Google style
+    'D203',
+    'D204',
+    'D213',
+    'D215',
+    'D400',
+    'D401',
+    'D404',
+    'D406',
+    'D407',
+    'D408',
+    'D409',
+    'D413',
+]
+
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+fixable = ["A", "B", "C", "D", "E", "F", "I"]
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.isort]
+known-first-party = ["h2scenarios"]
+force-single-line = true
+no-lines-before = ["future","standard-library","third-party","first-party","local-folder"]

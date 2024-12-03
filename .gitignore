@@ -30,3 +30,6 @@ build
 
 # scratch directories
 tmp
+
+# data
+data/

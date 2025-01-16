@@ -21,21 +21,24 @@ def csv_to_dfs(dirname: str):
         # this key is not needed in the dataframes themselves
         del parse_result.named["which_data"]
 
-        df = pd.read_csv(c, index_col=0).assign(**parse_result.named)
+        topdir = c.relative_to(dirname).parts[0]  # D-OFF, C-{OFF,ON}
+        df = pd.read_csv(c, index_col=0).assign(sysconfig=topdir, **parse_result.named)
 
         # prepared for having the 'sistem' typo be fixed
         if which_data in ["sistem costs", "system costs"]:
             # Use component name as part of index
-            columns_to_index = df.columns[-5:].values.tolist() + [df.columns[0]]
+            columns_to_index = df.columns[-6:].values.tolist() + [df.columns[0]]
 
         elif which_data == "simp_output_results":
             # ignore index, only has a single entry
-            columns_to_index = df.columns[-5:].values.tolist()
+            columns_to_index = df.columns[-6:].values.tolist()
 
         elif which_data == "time_dep_costs":
             # use index as year count
             df["year"] = df.index.values
-            columns_to_index = df.columns[-6:].values.tolist()
+            columns_to_index = df.columns[-7:].values.tolist()
+        else:
+            raise RuntimeError(f"{c}: could not match {which_data=}")
 
         df = df.set_index(columns_to_index)
         dfs[which_data].append(df)

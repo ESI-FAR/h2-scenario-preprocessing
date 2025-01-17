@@ -74,6 +74,7 @@ if __name__ == "__main__":
 
     parser = ArgumentParser(__doc__)
     parser.add_argument("input_dir")
+    parser.add_argument("-o", "--output", default="", help="Output NetCDF file")
     opts = parser.parse_args()
 
     multi_indexed_dfs = csv_to_dfs(opts.input_dir)
@@ -81,6 +82,11 @@ if __name__ == "__main__":
     ds = multi_indexed_dfs_to_xarray(multi_indexed_dfs)
 
     # Export!
-    outdir = opts.input_dir.rsplit("/", maxsplit=1)[0]
-    print(f"Exporting to {outdir}")
-    ds.to_netcdf(f"{outdir}/data-Laurens-HyChain_WP1.nc")
+    if opts.output:
+        outfile = opts.output
+    else:
+        outdir = opts.input_dir.rsplit("/", maxsplit=1)[0]
+        outfile = f"{outdir}/data-Laurens-HyChain_WP1.nc"
+
+    print(f"Writing to: {outfile}")
+    ds.to_netcdf(outfile)

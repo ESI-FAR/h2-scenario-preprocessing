@@ -50,7 +50,10 @@ def csv_to_dfs(dirname: str):
     # Merge them into one DataFrame per 'which_data'
     combined_dfs = {}
     for which_data, organized in dfs.items():
-        combined_dfs[which_data] = pd.concat(organized)
+        _df = pd.concat(organized)
+        # '/' is not accepted as a variable name by NetCDF, rename to '_per_'
+        _df.columns = [col.replace("/", "_per_") for col in _df.columns]
+        combined_dfs[which_data] = _df
 
     return combined_dfs
 
@@ -66,10 +69,6 @@ def multi_indexed_dfs_to_xarray(multi_indexed_dfs):
     :return:
     """
     ds = xr.merge(xr.Dataset.from_dataframe(df) for df in multi_indexed_dfs.values())
-
-    # '/' is not accepted as a variable name by NetCDF, rename to '_per_'
-    renaming = {old: old.replace("/", "_per_") for old in ds.data_vars.keys()}
-    ds = ds.rename_vars(renaming)
     return ds
 
 

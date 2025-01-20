@@ -40,6 +40,10 @@ def csv_to_dfs(dirname: str):
         else:
             raise RuntimeError(f"{c}: could not match {which_data=}")
 
+        df["rep_pipe"] = df.pop("pipe_kind") == "rep"
+        columns_to_index = [
+            "rep_pipe" if c == "pipe_kind" else c for c in columns_to_index
+        ]
         df = df.set_index(columns_to_index)
         dfs[which_data].append(df)
 
@@ -52,7 +56,7 @@ def csv_to_dfs(dirname: str):
 
 
 def multi_indexed_dfs_to_xarray(multi_indexed_dfs):
-    """
+    """Merge dataframes w/ a multiindex into a dataset.
 
     XArray merge each multi-indexed dataframe into a single Dataset:
     - the coordinates (multi-index) match between files

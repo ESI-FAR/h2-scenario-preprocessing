@@ -2,7 +2,9 @@
 
 from collections import defaultdict
 from pathlib import Path
+import sqlite3
 
+import duckdb
 import pandas as pd
 import parse
 import xarray as xr
@@ -78,18 +80,39 @@ if __name__ == "__main__":
     parser = ArgumentParser(__doc__)
     parser.add_argument("input_dir")
     parser.add_argument("-o", "--output", default="", help="Output NetCDF file")
+    parser.add_argument(
+        "-t",
+        "--type",
+        choices=["duckdb", "sqlite", "netcdf"],
+        default="netcdf",
+        help="Output format",
+    )
     opts = parser.parse_args()
 
     multi_indexed_dfs = csv_to_dfs(opts.input_dir)
 
     ds = multi_indexed_dfs_to_xarray(multi_indexed_dfs)
+    df = ds.to_dataframe()
 
-    # Export!
     if opts.output:
         outfile = opts.output
     else:
+        opts.type = "netcdf"
         outdir = opts.input_dir.rsplit("/", maxsplit=1)[0]
         outfile = f"{outdir}/data-Laurens-HyChain_WP1.nc"
 
-    print(f"Writing to: {outfile}")
-    ds.to_netcdf(outfile)
+    match opts.type:
+        case "netcdf":
+            print(f"Writing to NetCDF: {outfile}")
+            ds.to_netcdf(outfile)
+        case "sqlite":
+            print(f"Writing to SQLite: {outfile}, table 'h2_scenarios'")
+            con = sqlite3.connect(opts.output)
+            df.to_sql("h2_scenarios", con)
+            con.close()
+        case "duckdb":
+            print(f"Writing to DuckDB: {outfile}, table 'h2_scenarios'")
+            con = duckdb.connect(opts.output)
+            con.register("df", df.reset_index())
+            con.sql("CREATE OR REPLACE TABLE h2_schenarios AS SELECT * FROM df")
+            con.close()

@@ -3,6 +3,7 @@
 from collections import defaultdict
 from pathlib import Path
 import sqlite3
+from typing import cast
 
 import duckdb
 import pandas as pd
@@ -10,53 +11,57 @@ import parse
 import xarray as xr
 
 
+_trans_table = str.maketrans(
+    {"[": "_", "]": None, " ": None, "€": "Euro", "/": "_per_", "%": "percent"}
+)
+
+
 def csv_to_dfs(dirname: str):
     """Read CSVs from dir tree, and convert to `pandas.DataFrame`."""
-    template = "{which_data}_{technology:l}_{distance:d}_{bound_eco:l}_{bound_tech:l}_{pipe_kind:l}_pipe.csv"
+    template = (
+        "{which_data}_{technology:l}_{distance:d}"
+        "_{bound_eco:l}_{bound_tech:l}_{pipe_kind:l}_pipe.csv"
+    )
     dst = Path(dirname)
     csvs = list(dst.glob("**/*.csv"))
     dfs = defaultdict(list)
 
-    for c in csvs:
-        parse_result = parse.parse(template, c.name)
-        which_data = parse_result.named["which_data"]
+    for path in csvs:
+        parse_result = cast(parse.Result, parse.parse(template, path.name))
+        which_data = parse_result["which_data"]
         # this key is not needed in the dataframes themselves
-        del parse_result.named["which_data"]
+        columns = {k: v for k, v in parse_result.named.items() if k != "which_data"}
 
-        topdir = c.relative_to(dirname).parts[0]  # D-OFF, C-{OFF,ON}
-        df = pd.read_csv(c, index_col=0).assign(sysconfig=topdir, **parse_result.named)
+        topdir = path.relative_to(dirname).parts[0]  # D-OFF, C-{OFF,ON}
+        df = pd.read_csv(path, index_col=0).assign(sysconfig=topdir, **columns)
 
-        # prepared for having the 'sistem' typo be fixed
-        if which_data in ["sistem costs", "system costs"]:
-            # Use component name as part of index
-            columns_to_index = df.columns[-6:].values.tolist() + [df.columns[0]]
-
-        elif which_data == "simp_output_results":
-            # ignore index, only has a single entry
-            columns_to_index = df.columns[-6:].values.tolist()
-
-        elif which_data == "time_dep_costs":
-            # use index as year count
-            df["year"] = df.index.values
-            columns_to_index = df.columns[-7:].values.tolist()
-        else:
-            raise RuntimeError(f"{c}: could not match {which_data=}")
+        match which_data:
+            case "sistem costs" | "system costs":
+                which_data = "system_costs"
+                # "component[-]" -> "component"
+                df.columns = [
+                    "component" if "component" in c else c for c in df.columns
+                ]
+            case "time_dep_costs":
+                df["year"] = df.index.values
+            case "simp_output_results":
+                pass
+            case _:
+                raise RuntimeError(f"{path}: could not match {which_data=}")
 
         df["rep_pipe"] = df.pop("pipe_kind") == "rep"
-        columns_to_index = [
-            "rep_pipe" if c == "pipe_kind" else c for c in columns_to_index
+
+        idx_cols = [
+            col for col, type_ in df.dtypes.items() if type_ != float  # noqa: E721
         ]
-        df = df.set_index(columns_to_index)
+        df = df.set_index(idx_cols)
         dfs[which_data].append(df)
 
-    # Merge them into one DataFrame per 'which_data'
     combined_dfs = {}
     for which_data, organized in dfs.items():
         _df = pd.concat(organized)
-        # '/' is not accepted as a variable name by NetCDF, rename to '_per_'
-        _df.columns = [col.replace("/", "_per_") for col in _df.columns]
+        _df.columns = [col.translate(_trans_table) for col in _df.columns]
         combined_dfs[which_data] = _df
-
     return combined_dfs
 
 
@@ -89,10 +94,7 @@ if __name__ == "__main__":
     )
     opts = parser.parse_args()
 
-    multi_indexed_dfs = csv_to_dfs(opts.input_dir)
-
-    ds = multi_indexed_dfs_to_xarray(multi_indexed_dfs)
-    df = ds.to_dataframe()
+    dfs = csv_to_dfs(opts.input_dir)
 
     if opts.output:
         outfile = opts.output
@@ -104,15 +106,18 @@ if __name__ == "__main__":
     match opts.type:
         case "netcdf":
             print(f"Writing to NetCDF: {outfile}")
+            ds = multi_indexed_dfs_to_xarray(dfs)
             ds.to_netcdf(outfile)
         case "sqlite":
             print(f"Writing to SQLite: {outfile}, table 'h2_scenarios'")
             con = sqlite3.connect(opts.output)
-            df.to_sql("h2_scenarios", con)
+            for tbl, df in dfs.items():
+                df.to_sql(tbl, con)
             con.close()
         case "duckdb":
             print(f"Writing to DuckDB: {outfile}, table 'h2_scenarios'")
             con = duckdb.connect(opts.output)
-            con.register("df", df.reset_index())
-            con.sql("CREATE OR REPLACE TABLE h2_schenarios AS SELECT * FROM df")
+            for tbl, df in dfs.items():
+                con.register(f"{tbl}_df", df.reset_index())
+                con.sql(f"CREATE OR REPLACE TABLE {tbl} AS SELECT * FROM {tbl}_df")
             con.close()

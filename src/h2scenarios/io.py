@@ -15,6 +15,30 @@ _trans_table = str.maketrans(
     {"[": "_", "]": None, " ": None, "€": "Euro", "/": "_per_", "%": "percent"}
 )
 
+_component_grps = {
+    "WT": "Wind farm",
+    "RO_unit": "Water desalination and brine disposal",
+    "brine_disp": "Water desalination and brine disposal",
+    "ALK": "Electrolyzer",
+    "PEM": "Electrolyzer",
+    "H2_On_repur_pipelines": "Hydrogen infrastructure",
+    "H2_off_repur_pipelines": "Hydrogen infrastructure",
+    "H2_off_new_pipelines": "Hydrogen infrastructure",
+    "H2_On_new_pipelines": "Hydrogen infrastructure",
+    "H2_local_pipelines": "Hydrogen infrastructure",
+    "H2_substation": "Offshore hydrogen platform",
+    "Compressor_on": "Compressor",
+    "Compressor_off": "Compressor",
+    "grid_energy": "Compressor",
+    "AC_grid_cables": "Compressor",
+    "IA_cables": "Electrical infrastructure",
+    "AC_cables": "Electrical infrastructure",
+    "AC_electric_substructure": "Electrical infrastructure",
+    "DC_cables": "Electrical infrastructure",
+    "DC_electric_substructure": "Electrical infrastructure",
+    "H2_onshore": "",
+}
+
 
 def csv_to_dfs(dirname: str):
     """Read CSVs from dir tree, and convert to `pandas.DataFrame`."""
@@ -42,6 +66,7 @@ def csv_to_dfs(dirname: str):
                 df.columns = [
                     "component" if "component" in c else c for c in df.columns
                 ]
+                df = df.assign(component_groups=df["component"].map(_component_grps))
             case "time_dep_costs":
                 df["year"] = df.index.values
             case "simp_output_results":

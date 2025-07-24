@@ -1,4 +1,4 @@
-## Offshore H2 scenario explorer
+## Offshore H2 scenario preprocessing
 
 ### How to use
 
